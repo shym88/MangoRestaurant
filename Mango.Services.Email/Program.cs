@@ -1,63 +1,37 @@
-using Mango.MessageBus;
-using Mango.Services.OrderAPI.DbContexts;
-using Mango.Services.OrderAPI.Extension;
-using Mango.Services.OrderAPI.Messaging;
-using Mango.Services.OrderAPI.RabbitMQSender;
-using Mango.Services.OrderAPI.Repository;
+using Mango.Services.Email.DbContexts;
+using Mango.Services.Email.Extension;
+using Mango.Services.Email.Messaging;
+using Mango.Services.Email.Repository;
+using Mango.Services.PaymentAPI.Messaging;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-
 var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
 
 var connectionString = builder.Configuration.GetConnectionString("Default");
 IServiceCollection serviceCollection = builder.Services.AddDbContext<ApplicationDbContext>(x => x.UseSqlServer(connectionString));
 
-//IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
-//builder.Services.AddSingleton(mapper);
-builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+builder.Services.AddScoped<IEmailRepository, EmailRepository>();
 
 var optionBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
 optionBuilder.UseSqlServer(connectionString);
-
-builder.Services.AddHostedService<RabbitMQConsumer>();
-builder.Services.AddHostedService<RabbitMQPaymentConsumer>();
-
-builder.Services.AddSingleton(new OrderRepository(optionBuilder.Options));
+builder.Services.AddSingleton(new EmailRepository(optionBuilder.Options));
 
 builder.Services.AddSingleton<IAzureServiceBusConsumer, AzureServiceBusConsumer>();
-builder.Services.AddSingleton<IMessageBus, AzureServiceBusMessageBus>();
-builder.Services.AddSingleton<IRabbitMQOrderMessageSender, RabbitMQOrderMessageSender>();
+builder.Services.AddHostedService<RabbitMQPaymentConsumer>();
 
 builder.Services.AddControllers();
 
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
-    {
-        options.Authority = "https://localhost:7191/";
-        options.TokenValidationParameters = new TokenValidationParameters()
-        {
-            ValidateAudience = false
-        };
-    });
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("ApiScope", policy =>
-    {
-        policy.RequireAuthenticatedUser();
-        policy.RequireClaim("scope", "mango");
-    });
-});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Mango.Services.CouponAPI", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Mango.Services.Email", Version = "v1" });
+
     //c.EnableAnnotations();
     /*c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -104,8 +78,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-app.UseAuthentication();
 
 app.UseAuthorization();
 
