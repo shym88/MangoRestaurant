@@ -6,7 +6,9 @@ using System.Data;
 
 namespace Mango.Services.ProductAPI.Controllers
 {
-    [Route("api/products")]
+    
+
+
     public class ProductAPIController : ControllerBase
     {
         protected ResponseDto _response;
